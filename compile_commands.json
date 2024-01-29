@@ -1,0 +1,17 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/clang",
+      "-c",
+      "-g",
+      "-Wall",
+      "-I./include/",
+      "-o",
+      "main.o",
+      "main.c"
+    ],
+    "directory": "/home/goldenboy/alert_widget",
+    "file": "/home/goldenboy/alert_widget/main.c",
+    "output": "/home/goldenboy/alert_widget/main.o"
+  }
+]
