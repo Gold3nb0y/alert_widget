@@ -13,5 +13,20 @@
     "directory": "/home/goldenboy/alert_widget",
     "file": "/home/goldenboy/alert_widget/main.c",
     "output": "/home/goldenboy/alert_widget/main.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/clang",
+      "-c",
+      "-g",
+      "-Wall",
+      "-I./include/",
+      "-o",
+      "build/alert_box.o",
+      "src/alert_box.c"
+    ],
+    "directory": "/home/goldenboy/alert_widget",
+    "file": "/home/goldenboy/alert_widget/src/alert_box.c",
+    "output": "/home/goldenboy/alert_widget/build/alert_box.o"
   }
 ]

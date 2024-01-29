@@ -14,7 +14,7 @@
 #endif // DEBUG
 
 #if LEVEL >= VERBOSE
-#define LOG_VER(format, ...) printf("[*][%s:%d] ",__FILE__, __LINE__), printf(message, __VA_ARGS__)
+#define LOG_VER(format, ...) printf("[*][%s:%d] ",__FILE__, __LINE__), printf(format, __VA_ARGS__)
 #else
 #define LOG_VER(format, ...)
 #endif // DEBUG
