@@ -2,31 +2,37 @@
 #include "include/alert_box.h"
 #include <unistd.h>
 
-#define TEST
+#define TESTS
 static void tests();
 
 int main(void){
+#ifdef TEST
+    tests();
+#endif
 
     if(init_display()) LOG_ERR("DISPLAY INIT FAILED");
 
-#ifdef TEST
-    tests();
-#else
-    create_main_window();
-#endif
+    if(create_main_window()){
+        LOG_INFO("Failed to init window");
+        goto out;
+    }
+    draw_alert();
+
+out:
     cleanup();
     return 0;
 }
 
 static void tests(){
-    LOG_DEBUG("%s\n", "Create Window");
-    create_main_window();
+    LOG_DEBUG("[TEST] %s\n", "init display");
+    if(init_display()) LOG_ERR("failed to initialize display");
+    LOG_DEBUG("[TEST] %s\n", "Create Window");
+    if(create_main_window()) LOG_ERR("failed to create window");
     sleep(1);
-    LOG_DEBUG("%s\n", "Close Window");
+    LOG_DEBUG("[TEST] %s\n", "Close Window");
     close_main_window();
     sleep(1);
-    LOG_DEBUG("%s\n", "Create Window");
-    create_main_window();
-    sleep(3);
+    LOG_DEBUG("[TEST] %s\n", "cleanup");
+    cleanup();
     return;
 }

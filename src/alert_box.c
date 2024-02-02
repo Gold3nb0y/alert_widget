@@ -8,6 +8,7 @@
 static struct struct_alert_box {
     Display *display;
     Window main_window;
+    GC graphic_ctx;
 } alert_box;
 
 uint64_t init_display(){
@@ -26,16 +27,54 @@ uint64_t init_display(){
 }
 
 uint64_t create_main_window(){
+    int status;
+    uint64_t ret = SUCCESS;
     alert_box.main_window = XCreateSimpleWindow(alert_box.display, DefaultRootWindow(alert_box.display), 50, 50, 250, 250, 2, 0, 0xFFFFFF);
+
+    status = XSelectInput(alert_box.display, alert_box.main_window, StructureNotifyMask | ExposureMask | KeyPressMask);
+    if(status == BadWindow){
+        ret = FAILURE;
+        goto out;
+    }
+
+
+    alert_box.graphic_ctx = XCreateGC(alert_box.display, alert_box.main_window, 0, NULL);
+
     XMapWindow(alert_box.display, alert_box.main_window);
-    XFlush(alert_box.display);
-    return SUCCESS;
+out:
+    return ret;
+}
+
+void handle_events(){
+    XEvent e;
+    for(;;){
+        XNextEvent(alert_box.display, &e);
+        switch(e.type){
+            case Expose:
+                XSetForeground(alert_box.display, alert_box.graphic_ctx, 0);
+                XDrawLine(alert_box.display, alert_box.main_window, alert_box.graphic_ctx, 10, 60, 180, 20);
+                XFlush(alert_box.display);
+                break;
+            case KeyPress:
+                return;
+            default:
+                break;
+        }
+    }
+    return;
+}
+
+void draw_alert(){
+    LOG_DEBUG("%s\n", "drawing started");
+    handle_events();
+    LOG_DEBUG("%s\n", "drawing done");
 }
 
 uint64_t close_window(Window w){
     int status;
     uint64_t ret;
     status = XUnmapWindow(alert_box.display, w);
+    XFreeGC(alert_box.display, alert_box.graphic_ctx);
     if(status == BadWindow){
         ret = FAILURE;
     } else {
@@ -50,7 +89,6 @@ void close_main_window(){
 }
 
 uint64_t cleanup(){
-    close_main_window();
     XCloseDisplay(alert_box.display);
     //XFlush(alert_box.display);
     //XFree(alert_box.display);
