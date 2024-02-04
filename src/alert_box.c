@@ -3,13 +3,22 @@
 #include <X11/Xutil.h>
 #include <stdint.h>
 #include "common.h"
+#include <stdlib.h>
 #include <unistd.h>
+
+#define ENTER_KEYCODE 0x24
+#define HIEGHT 600
+#define WIDTH 600
 
 static struct struct_alert_box {
     Display *display;
     Window main_window;
     GC graphic_ctx;
 } alert_box;
+
+int randr(uint upper){
+    return rand() % upper+1;
+}
 
 uint64_t init_display(){
     uint32_t screen_num;
@@ -29,7 +38,7 @@ uint64_t init_display(){
 uint64_t create_main_window(){
     int status;
     uint64_t ret = SUCCESS;
-    alert_box.main_window = XCreateSimpleWindow(alert_box.display, DefaultRootWindow(alert_box.display), 50, 50, 250, 250, 2, 0, 0xFFFFFF);
+    alert_box.main_window = XCreateSimpleWindow(alert_box.display, DefaultRootWindow(alert_box.display), 300, 300, HIEGHT, WIDTH, 2, 0, 0xFFFFFF);
 
     status = XSelectInput(alert_box.display, alert_box.main_window, StructureNotifyMask | ExposureMask | KeyPressMask);
     if(status == BadWindow){
@@ -47,16 +56,23 @@ out:
 
 void handle_events(){
     XEvent e;
+    XKeyEvent k;
+    KeySym ksym;
     for(;;){
         XNextEvent(alert_box.display, &e);
         switch(e.type){
+            case KeyPress:
+                k = e.xkey;
+                ksym = XLookupKeysym(&k, 0);
+                LOG_DEBUG("KEY PRESSED: %x\n", k.keycode);
+                LOG_DEBUG("KEYSYM: %x\n", (uint32_t)ksym);
+                if(ksym == '\a')
+                    return;
             case Expose:
-                XSetForeground(alert_box.display, alert_box.graphic_ctx, 0);
-                XDrawLine(alert_box.display, alert_box.main_window, alert_box.graphic_ctx, 10, 60, 180, 20);
+                XSetForeground(alert_box.display, alert_box.graphic_ctx, randr(255) << 16 | randr(255) << 8 | randr(255));
+                XDrawLine(alert_box.display, alert_box.main_window, alert_box.graphic_ctx, randr(600), randr(600), randr(600), randr(600));
                 XFlush(alert_box.display);
                 break;
-            case KeyPress:
-                return;
             default:
                 break;
         }
