@@ -2,7 +2,7 @@
 OBJS := main.o build/alert_box.o
 CC = clang
 CFLAGS = -g -Wall -I./include/
-LIBS = -lX11
+LIBS = -lX11 -lpng
 
 
 all: $(OBJS)# all requires the object files to run
