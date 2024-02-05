@@ -12,13 +12,8 @@ int main(void){
 
     if(init_display()) LOG_ERR("DISPLAY INIT FAILED");
 
-    if(create_main_window()){
-        LOG_INFO("Failed to init window");
-        goto out;
-    }
     draw_alert();
 
-out:
     cleanup();
     return 0;
 }

@@ -10,8 +10,6 @@
 #include <string.h>
 
 #define ENTER_KEYCODE 0x24
-#define HIEGHT 1000
-#define WIDTH 1200
 #define ENTER 0xFF0D
 #define HDR_SZ 8
 
@@ -21,7 +19,12 @@ static struct struct_alert_box {
     GC graphic_ctx;
 } alert_box;
 
-XImage* waifu;
+struct waifu_struct{
+    XImage* waifu_img;
+    uint32_t width;
+    uint32_t height;
+    uint32_t row_bytes;
+} waifu;
 
 int randr(uint upper){
     return rand() % upper+1;
@@ -45,7 +48,7 @@ uint64_t init_display(){
 uint64_t create_main_window(){
     int status;
     uint64_t ret = SUCCESS;
-    alert_box.main_window = XCreateSimpleWindow(alert_box.display, DefaultRootWindow(alert_box.display), 300, 300, WIDTH, HIEGHT, 2, 0, 0xFFFFFF);
+    alert_box.main_window = XCreateSimpleWindow(alert_box.display, DefaultRootWindow(alert_box.display), 300, 300, waifu.width, waifu.height, 2, 0, 0xFFFFFF);
 
     status = XSelectInput(alert_box.display, alert_box.main_window, StructureNotifyMask | ExposureMask | KeyPressMask);
     if(status == BadWindow){
@@ -119,13 +122,27 @@ void load_png(FILE *imgp){
         //LOG_DEBUG("data: %p index: %d row_bytes: %d row_pointer: %p\n", *data, i, *row_bytes, row_pointers[i]);
         memcpy(data + (i * (row_bytes)), row_pointers[i], row_bytes);
     }
+    
+    uint8_t r,b;
+    for(uint64_t i = 0; i < size; i += 4){
+        r = data[i+2];
+        b = data[i];
+        data[i] = r;
+        data[i+2] = b;
+    }
 
     LOG_DEBUG("Display Depth: %d\n", DefaultDepth(alert_box.display, DefaultScreen(alert_box.display)));
-    waifu = XCreateImage(alert_box.display, 
+    waifu.waifu_img = XCreateImage(alert_box.display, 
             DefaultVisual(alert_box.display, DefaultScreen(alert_box.display)),
             DefaultDepth(alert_box.display, DefaultScreen(alert_box.display)),
             ZPixmap, 0, (char*)data, 
             width, height, 32, row_bytes);
+
+    waifu.width = width;
+    waifu.height = height;
+    waifu.row_bytes = row_bytes;
+
+    LOG_DEBUG("waifu pointer: %p\n", waifu.waifu_img);
 
     LOG_DEBUG("%s\n", "destroy");
     //png_read_end(png, end);
@@ -133,27 +150,37 @@ void load_png(FILE *imgp){
     png_destroy_read_struct(&png, &info, NULL);
 }
 
-uint64_t draw_image(){
+uint64_t init_image(){
     uint64_t ret = SUCCESS;
     FILE* imgp = fopen("aqua.png", "rb");
     if(!imgp) LOG_ERR("failed to open file");
 
     load_png(imgp);
 
-    if(waifu){
-        LOG_DEBUG("%s\n", "drawing waifu");
-        XPutImage(alert_box.display, alert_box.main_window, alert_box.graphic_ctx, 
-                waifu, 0, 0, 0, 0, 860, 1160);
-    } else {
-        LOG_DEBUG("%s\n", "Failed to create waifu :(");
-        ret = FAILURE;
-    }
-
     //send the events
     XFlush(alert_box.display);
     XSync(alert_box.display, False);
 
     return ret;
+}
+
+void draw_waifu(){
+    uint32_t rc;
+    rc = XPutImage(alert_box.display, alert_box.main_window, alert_box.graphic_ctx, 
+            waifu.waifu_img, 0, 0, 0, 0, waifu.width, waifu.height);
+    switch(rc){
+        case BadWindow:
+            LOG_ERR("Bad Window");
+        case BadDrawable:
+            LOG_ERR("Bad Drawable");
+        case BadGC:
+            LOG_ERR("Bad GC");
+        case BadValue:
+            LOG_ERR("Bad Value");
+        default:
+            LOG_INFO("no errors when putting waifu");
+            break;
+    }
 }
 
 void handle_events(){
@@ -170,11 +197,13 @@ void handle_events(){
                 LOG_DEBUG("KEYSYM: %x\n", (uint32_t)ksym);
                 if(ksym == ENTER)
                     return;
+                break;
             case Expose:
-                XSetForeground(alert_box.display, alert_box.graphic_ctx, 
-                        randr(255) << 16 | randr(255) << 8 | randr(255));
-                XDrawLine(alert_box.display, alert_box.main_window, 
-                        alert_box.graphic_ctx, randr(600), randr(600), randr(600), randr(600));
+                //XSetForeground(alert_box.display, alert_box.graphic_ctx, 
+                //        randr(255) << 16 | randr(255) << 8 | randr(255));
+                //XDrawLine(alert_box.display, alert_box.main_window, 
+                //        alert_box.graphic_ctx, randr(600), randr(600), randr(600), randr(600));
+                draw_waifu();
                 XFlush(alert_box.display);
                 break;
             default:
@@ -185,11 +214,14 @@ void handle_events(){
 }
 
 void draw_alert(){
-    LOG_DEBUG("%s\n", "aqua");
-    draw_image();
-    LOG_DEBUG("%s\n", "drawing started");
+    LOG_VER("%s\n", "aqua");
+    init_image();
+    XFlush(alert_box.display);
+    LOG_VER("%s\n", "create main window");
+    create_main_window();
+    LOG_VER("%s\n", "drawing started");
     handle_events();
-    LOG_DEBUG("%s\n", "drawing done");
+    LOG_VER("%s\n", "drawing done");
 }
 
 uint64_t close_window(Window w){
@@ -211,8 +243,8 @@ void close_main_window(){
 }
 
 uint64_t cleanup(){
+    XDestroyImage(waifu.waifu_img);
     XCloseDisplay(alert_box.display);
     //XFlush(alert_box.display);
-    //XFree(alert_box.display);
     return SUCCESS;
 }
