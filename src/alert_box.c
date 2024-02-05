@@ -13,18 +13,26 @@
 #define ENTER 0xFF0D
 #define HDR_SZ 8
 
+char* message = "stretch your wrists BAKA";
+#define MSG_LEN 24
+
 static struct struct_alert_box {
     Display *display;
     Window main_window;
     GC graphic_ctx;
 } alert_box;
 
-struct waifu_struct{
+struct img_metadata{
     XImage* waifu_img;
     uint32_t width;
     uint32_t height;
     uint32_t row_bytes;
-} waifu;
+    uint32_t off_x;
+    uint32_t off_y;
+    uint32_t Pixmap_type;
+};
+
+struct img_metadata* waifu;
 
 int randr(uint upper){
     return rand() % upper+1;
@@ -47,8 +55,10 @@ uint64_t init_display(){
 
 uint64_t create_main_window(){
     int status;
+    XFontStruct* font_info;
+    char* font_name = "NotoKufiArabic-Bold.ttf";
     uint64_t ret = SUCCESS;
-    alert_box.main_window = XCreateSimpleWindow(alert_box.display, DefaultRootWindow(alert_box.display), 300, 300, waifu.width, waifu.height, 2, 0, 0xFFFFFF);
+    alert_box.main_window = XCreateSimpleWindow(alert_box.display, DefaultRootWindow(alert_box.display), 300, 300, waifu->width, waifu->height, 2, 0, 0xFFFFFF);
 
     status = XSelectInput(alert_box.display, alert_box.main_window, StructureNotifyMask | ExposureMask | KeyPressMask);
     if(status == BadWindow){
@@ -60,13 +70,14 @@ uint64_t create_main_window(){
     alert_box.graphic_ctx = XCreateGC(alert_box.display, alert_box.main_window, 0, NULL);
 
     XMapWindow(alert_box.display, alert_box.main_window);
+
 out:
     return ret;
 }
 
 //refrence https://copyprogramming.com/howto/displaying-png-file-using-xputimage-does-not-work
 //https://heiwais25.github.io/c/image%20process/2017/12/28/how-to-use-libpng-library/
-void load_png(FILE *imgp){
+struct img_metadata* load_png(FILE *imgp){
     size_t size = 0;
     png_structp png = NULL;
     int read_flag = PNG_TRANSFORM_PACKING | PNG_TRANSFORM_EXPAND;
@@ -77,7 +88,9 @@ void load_png(FILE *imgp){
     uint8_t *data;
     uint32_t width, height;
     uint32_t row_bytes;
+    struct img_metadata* w;
 
+    w = malloc(sizeof(struct img_metadata));
     memset(header, 0, HDR_SZ+1);
     fread(header, 1, HDR_SZ, imgp);
     if(png_sig_cmp(header, 0, HDR_SZ)) LOG_ERR("invalid png file");
@@ -109,6 +122,9 @@ void load_png(FILE *imgp){
 
     LOG_DEBUG("%s\n", "get rowbytes");
     row_bytes = png_get_rowbytes(png, info);
+    if(colortype == PNG_COLOR_TYPE_RGB){
+        LOG_ERR("X11 does not support 24bit images");
+    }
     //https://copyprogramming.com/howto/displaying-png-file-using-xputimage-does-not-work
     size = height * row_bytes;
 
@@ -132,42 +148,43 @@ void load_png(FILE *imgp){
     }
 
     LOG_DEBUG("Display Depth: %d\n", DefaultDepth(alert_box.display, DefaultScreen(alert_box.display)));
-    waifu.waifu_img = XCreateImage(alert_box.display, 
+    w->waifu_img = XCreateImage(alert_box.display, 
             DefaultVisual(alert_box.display, DefaultScreen(alert_box.display)),
             DefaultDepth(alert_box.display, DefaultScreen(alert_box.display)),
             ZPixmap, 0, (char*)data, 
             width, height, 32, row_bytes);
 
-    waifu.width = width;
-    waifu.height = height;
-    waifu.row_bytes = row_bytes;
+    w->width = width;
+    w->height = height;
+    w->row_bytes = row_bytes;
 
-    LOG_DEBUG("waifu pointer: %p\n", waifu.waifu_img);
+    LOG_DEBUG("waifu pointer: %p\n", w->waifu_img);
 
     LOG_DEBUG("%s\n", "destroy");
     //png_read_end(png, end);
     png_destroy_info_struct(png, &info);
     png_destroy_read_struct(&png, &info, NULL);
+    return w;
 }
 
-uint64_t init_image(){
-    uint64_t ret = SUCCESS;
-    FILE* imgp = fopen("aqua.png", "rb");
+struct img_metadata* init_image(char* filename){
+    FILE* imgp = fopen(filename, "rb");
     if(!imgp) LOG_ERR("failed to open file");
+    struct img_metadata* w;
 
-    load_png(imgp);
+    w = load_png(imgp);
 
     //send the events
     XFlush(alert_box.display);
     XSync(alert_box.display, False);
 
-    return ret;
+    return w;
 }
 
-void draw_waifu(){
+void draw_img(struct img_metadata* img){
     uint32_t rc;
     rc = XPutImage(alert_box.display, alert_box.main_window, alert_box.graphic_ctx, 
-            waifu.waifu_img, 0, 0, 0, 0, waifu.width, waifu.height);
+            img->waifu_img, img->off_x, img->off_y, 0, 0, img->width, img->height);
     switch(rc){
         case BadWindow:
             LOG_ERR("Bad Window");
@@ -199,11 +216,9 @@ void handle_events(){
                     return;
                 break;
             case Expose:
-                //XSetForeground(alert_box.display, alert_box.graphic_ctx, 
-                //        randr(255) << 16 | randr(255) << 8 | randr(255));
-                //XDrawLine(alert_box.display, alert_box.main_window, 
-                //        alert_box.graphic_ctx, randr(600), randr(600), randr(600), randr(600));
-                draw_waifu();
+                draw_img(waifu);
+                XDrawString(alert_box.display, alert_box.main_window, alert_box.graphic_ctx, 
+                        50, 50, message, MSG_LEN);
                 XFlush(alert_box.display);
                 break;
             default:
@@ -213,9 +228,11 @@ void handle_events(){
     return;
 }
 
-void draw_alert(){
+void draw_alert(char* bg_image_filename){
     LOG_VER("%s\n", "aqua");
-    init_image();
+    waifu = init_image(bg_image_filename);
+    waifu->off_x = 0;
+    waifu->off_y = 0;
     XFlush(alert_box.display);
     LOG_VER("%s\n", "create main window");
     create_main_window();
@@ -243,7 +260,8 @@ void close_main_window(){
 }
 
 uint64_t cleanup(){
-    XDestroyImage(waifu.waifu_img);
+    XDestroyImage(waifu->waifu_img);
+    free(waifu);
     XCloseDisplay(alert_box.display);
     //XFlush(alert_box.display);
     return SUCCESS;
