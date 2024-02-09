@@ -3,7 +3,7 @@
 #define VERBOSE 2
 #define DEBUG 3
 
-#define LEVEL DEBUG
+#define LEVEL INFO
 
 #define LOG_ERR(message) printf("[!][%s:%d] %s\n", __FILE__, __LINE__, message), exit(1)
 
