@@ -6,7 +6,7 @@ LIBS = -lX11 -lpng
 
 
 all: $(OBJS)# all requires the object files to run
-	$(CC) -o alert_widget $(OBJS) $(LIBS)
+	$(CC) -o waifu_widget $(OBJS) $(LIBS)
 
 #the requires part is important for checking the timestamp
 main.o : main.c 
@@ -16,4 +16,4 @@ build/%.o : src/%.c include/%.h
 	$(CC) -c $(CFLAGS) $< -o $@
 
 clean:
-	rm alert_widget main.o build/*
+	rm waifu_widget main.o build/*

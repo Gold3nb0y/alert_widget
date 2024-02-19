@@ -18,16 +18,15 @@ def main():
         print("Usage: ./run.py <waifu directory>")
         return
 
-    files = listdir(sys.argv[1])
-    files = [file for file in files if ".png" in file]
-    if not files:
-        print(f"No waifus in directory: {waifu_dir}")
-        return
 
     while(True):
-        f = files
-        random.shuffle(f)
-        file = f.pop()
+        files = listdir(sys.argv[1])
+        files = [file for file in files if ".png" in file]
+        if not files:
+            print(f"No waifus in directory: {waifu_dir}")
+            return
+        random.shuffle(files)
+        file = files.pop()
         system(f"/opt/alert_widget {path.join(waifu_dir, file)} &")
         time.sleep(60)
         system("pkill -9 alert_widget")
